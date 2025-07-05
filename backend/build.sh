@@ -7,6 +7,13 @@ echo "Starting build process..."
 # Install Python dependencies
 echo "Installing Python dependencies..."
 pip install --upgrade pip
+
+# Install PyTorch CPU version first
+echo "Installing PyTorch CPU version..."
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install other dependencies
+echo "Installing other dependencies..."
 pip install -r requirements.txt
 
 # Create necessary directories
