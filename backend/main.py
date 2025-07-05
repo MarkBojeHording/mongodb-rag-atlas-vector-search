@@ -6,6 +6,7 @@ from rag_chain import answer_question # Import your RAG function
 from db_utils import ingest_documents_to_mongodb # For initial ingestion
 import logging
 import sys
+import datetime
 from config import MONGO_URI
 
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +45,29 @@ print(f"[DEBUG] MONGO_URI: {MONGO_URI}")
 async def read_root():
     """Root endpoint to check if the API is running."""
     logger.info("Root endpoint accessed.")
-    return {"message": "RAG API is running!"}
+    return {"message": "RAG API is running!", "status": "healthy"}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment monitoring."""
+    try:
+        # Test MongoDB connection
+        from db_utils import get_mongo_collection
+        collection = get_mongo_collection()
+        collection.find_one()  # Simple query to test connection
+
+        return {
+            "status": "healthy",
+            "mongodb": "connected",
+            "timestamp": str(datetime.datetime.now())
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": str(datetime.datetime.now())
+        }
 
 @app.post("/ask")
 async def ask_rag(request: QueryRequest):
