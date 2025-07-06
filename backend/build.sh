@@ -10,7 +10,7 @@ pip install --upgrade pip
 
 # Install PyTorch CPU version first
 echo "Installing PyTorch CPU version..."
-pip install torch==2.7.1+cpu torchvision==0.18.1+cpu torchaudio==2.7.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.7.1+cpu torchvision==0.22.1+cpu torchaudio==2.7.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Install other dependencies
 echo "Installing other dependencies..."
