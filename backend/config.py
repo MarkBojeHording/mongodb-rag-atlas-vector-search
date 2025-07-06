@@ -41,8 +41,17 @@ def encode_mongo_uri_safely(raw_uri):
         username, password = auth_part.split(':', 1)
 
         # URL encode with aggressive encoding (no safe characters)
+        # This is the key fix - encode ALL special characters
         encoded_username = urllib.parse.quote_plus(username, safe='')
         encoded_password = urllib.parse.quote_plus(password, safe='')
+
+        # Additional safety check - ensure no unencoded special characters remain
+        problematic_chars = ['@', ':', '/', '?', '#', '[', ']', '%']
+        for char in problematic_chars:
+            if char in encoded_username:
+                print(f"[WARNING] Encoded username still contains '{char}'")
+            if char in encoded_password:
+                print(f"[WARNING] Encoded password still contains '{char}'")
 
         # Reconstruct the URI
         encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
@@ -53,6 +62,11 @@ def encode_mongo_uri_safely(raw_uri):
         print(f"[DEBUG] Original password length: {len(password)}")
         print(f"[DEBUG] Encoded password length: {len(encoded_password)}")
         print(f"[DEBUG] Final URI preview: {encoded_uri[:50]}...")
+
+        # Final validation - check if the URI looks correct
+        if not (encoded_uri.startswith('mongodb+srv://') or encoded_uri.startswith('mongodb://')):
+            print("[ERROR] Encoded URI doesn't look like a valid MongoDB URI")
+            return raw_uri
 
         return encoded_uri
 
