@@ -1,112 +1,53 @@
 #!/usr/bin/env python3
 """
-Simple test script to diagnose MongoDB Atlas SSL connection issues.
+Simple test to isolate MongoDB connection issue
 """
 import os
-import sys
-from dotenv import load_dotenv
-from pymongo import MongoClient
-import ssl
-import logging
 import urllib.parse
+from pymongo import MongoClient
 
-# Load environment variables
-load_dotenv()
+def test_direct_connection():
+    """Test MongoDB connection directly without config.py"""
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+    # Get raw URI from environment
+    raw_uri = os.getenv("MONGO_URI")
+    print(f"Raw URI length: {len(raw_uri) if raw_uri else 0}")
 
-def encode_mongo_uri(uri):
-    """Encode MongoDB URI to handle special characters in username/password."""
-    if not uri:
-        return uri
-
-    try:
-        if 'mongodb+srv://' in uri:
-            scheme, rest = uri.split('://', 1)
-            if '@' in rest:
-                auth_part, host_part = rest.split('@', 1)
-                if ':' in auth_part:
-                    username, password = auth_part.split(':', 1)
-                    # URL encode username and password with aggressive encoding
-                    encoded_username = urllib.parse.quote_plus(username, safe='')
-                    encoded_password = urllib.parse.quote_plus(password, safe='')
-                    # Reconstruct the URI
-                    return f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
-        return uri
-    except Exception as e:
-        logger.error(f"Error encoding MongoDB URI: {e}")
-        return uri
-
-def test_basic_connection():
-    """Test basic MongoDB connection without complex SSL settings."""
-    raw_mongo_uri = os.getenv("MONGO_URI")
-
-    if not raw_mongo_uri:
-        logger.error("MONGO_URI not found in environment variables")
+    if not raw_uri:
+        print("No MONGO_URI found")
         return False
 
-    # Encode the URI to handle special characters
-    mongo_uri = encode_mongo_uri(raw_mongo_uri)
-    logger.info(f"MongoDB URI: {mongo_uri[:50]}...")
-
-    # Test 1: Basic connection with minimal settings
     try:
-        logger.info("Test 1: Basic connection with minimal settings")
-        client = MongoClient(mongo_uri)
+        # Try direct connection first
+        print("Testing direct connection...")
+        client = MongoClient(raw_uri, serverSelectionTimeoutMS=5000)
         client.admin.command('ping')
-        logger.info("✅ Basic connection successful!")
-        client.close()
+        print("✓ Direct connection successful")
         return True
     except Exception as e:
-        logger.error(f"❌ Basic connection failed: {e}")
+        print(f"✗ Direct connection failed: {e}")
 
-    # Test 2: Connection with explicit SSL context
-    try:
-        logger.info("Test 2: Connection with explicit SSL context")
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        # Try with manual encoding
+        try:
+            print("Testing with manual encoding...")
+            if 'mongodb+srv://' in raw_uri:
+                scheme, rest = raw_uri.split('://', 1)
+                if '@' in rest:
+                    auth_part, host_part = rest.split('@', 1)
+                    if ':' in auth_part:
+                        username, password = auth_part.split(':', 1)
+                        encoded_username = urllib.parse.quote_plus(username, safe='')
+                        encoded_password = urllib.parse.quote_plus(password, safe='')
+                        encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
 
-        client = MongoClient(
-            mongo_uri,
-            tls=True,
-            tlsInsecure=True,
-            serverSelectionTimeoutMS=10000
-        )
-        client.admin.command('ping')
-        logger.info("✅ SSL context connection successful!")
-        client.close()
-        return True
-    except Exception as e:
-        logger.error(f"❌ SSL context connection failed: {e}")
-
-    # Test 3: Connection with older SSL settings
-    try:
-        logger.info("Test 3: Connection with older SSL settings")
-        client = MongoClient(
-            mongo_uri,
-            ssl=True,
-            ssl_cert_reqs=ssl.CERT_NONE,
-            serverSelectionTimeoutMS=10000
-        )
-        client.admin.command('ping')
-        logger.info("✅ Older SSL settings connection successful!")
-        client.close()
-        return True
-    except Exception as e:
-        logger.error(f"❌ Older SSL settings connection failed: {e}")
+                        client = MongoClient(encoded_uri, serverSelectionTimeoutMS=5000)
+                        client.admin.command('ping')
+                        print("✓ Encoded connection successful")
+                        return True
+        except Exception as e2:
+            print(f"✗ Encoded connection failed: {e2}")
 
     return False
 
 if __name__ == "__main__":
-    logger.info("Testing basic MongoDB Atlas connection...")
-    success = test_basic_connection()
-
-    if success:
-        logger.info("✅ Connection test completed successfully!")
-        sys.exit(0)
-    else:
-        logger.error("❌ All connection attempts failed!")
-        sys.exit(1)
+    test_direct_connection()
