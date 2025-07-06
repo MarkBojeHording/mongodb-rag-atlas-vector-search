@@ -13,22 +13,31 @@ load_dotenv()
 import urllib.parse
 
 raw_mongo_uri = os.getenv("MONGO_URI")  # Set this in your .env file
+print(f"[DEBUG] Raw MongoDB URI: {raw_mongo_uri[:20]}..." if raw_mongo_uri else "[DEBUG] No MongoDB URI found")
 if raw_mongo_uri:
-    # Parse and re-encode the URI to handle special characters
-    parsed = urllib.parse.urlparse(raw_mongo_uri)
-    # Re-encode username and password if they contain special characters
-    if '@' in parsed.netloc:
-        auth, host = parsed.netloc.split('@', 1)
-        if ':' in auth:
-            username, password = auth.split(':', 1)
-            # URL encode username and password
-            encoded_username = urllib.parse.quote_plus(username)
-            encoded_password = urllib.parse.quote_plus(password)
-            # Reconstruct the URI
-            MONGO_URI = f"{parsed.scheme}://{encoded_username}:{encoded_password}@{host}"
+    try:
+        # Handle MongoDB URI with special characters more robustly
+        if 'mongodb+srv://' in raw_mongo_uri:
+            # For MongoDB Atlas SRV connections
+            scheme, rest = raw_mongo_uri.split('://', 1)
+            if '@' in rest:
+                auth_part, host_part = rest.split('@', 1)
+                if ':' in auth_part:
+                    username, password = auth_part.split(':', 1)
+                    # URL encode username and password
+                    encoded_username = urllib.parse.quote_plus(username)
+                    encoded_password = urllib.parse.quote_plus(password)
+                    # Reconstruct the URI
+                    MONGO_URI = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+                else:
+                    MONGO_URI = raw_mongo_uri
+            else:
+                MONGO_URI = raw_mongo_uri
         else:
+            # For regular MongoDB connections
             MONGO_URI = raw_mongo_uri
-    else:
+    except Exception as e:
+        print(f"Error processing MongoDB URI: {e}")
         MONGO_URI = raw_mongo_uri
 else:
     MONGO_URI = None
