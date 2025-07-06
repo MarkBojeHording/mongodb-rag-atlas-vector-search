@@ -3,3 +3,5 @@ uvicorn[standard]
 pymongo
 python-multipart
 python-dotenv
+requests
+pypdf
