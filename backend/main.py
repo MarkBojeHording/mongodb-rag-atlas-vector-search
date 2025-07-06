@@ -19,12 +19,11 @@ app = FastAPI(
 )
 
 # Configure CORS to allow your frontend to access the API
-# IMPORTANT: In production, change "http://localhost:3000" and "http://localhost:5173"
-# to the actual domain where your frontend will be hosted!
 origins = [
     "http://localhost:3000",  # Default for Create React App
     "http://localhost:5173",  # Default for Vite React app
-    # Add your deployed frontend URL here when ready, e.g., "https://your-frontend-app.com"
+    "https://*.netlify.app",  # Allow all Netlify domains
+    "https://*.onrender.com", # Allow all Render domains
 ]
 
 app.add_middleware(
