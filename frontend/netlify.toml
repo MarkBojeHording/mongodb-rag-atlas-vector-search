@@ -1,6 +1,7 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  # Updated configuration for backend redirect
 
 [[redirects]]
   from = "/api/*"
