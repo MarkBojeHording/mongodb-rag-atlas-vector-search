@@ -12,6 +12,10 @@ pip install --upgrade pip
 echo "Installing PyTorch CPU version..."
 pip install torch==2.7.1+cpu torchvision==0.22.1+cpu torchaudio==2.7.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 
+# Install problematic packages with pre-compiled wheels
+echo "Installing packages with pre-compiled wheels..."
+pip install --only-binary=all sentence-transformers==2.5.1 transformers==4.40.0
+
 # Install other dependencies
 echo "Installing other dependencies..."
 pip install -r requirements.txt
