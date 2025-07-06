@@ -1,8 +1,8 @@
 # Deploying the Frontend to Netlify
 
-1. **Set the API URL:**
-   - In your Netlify dashboard, go to Site settings > Environment variables.
-   - Add `VITE_API_BASE_URL` and set it to your backend's public URL: `https://mongodb-rag-atlas-vector-search.onrender.com`
+1. **API Configuration:**
+   - The frontend automatically uses `/api` endpoints which are proxied to your backend via `netlify.toml`
+   - No environment variables needed - the redirects handle the API routing automatically
 
 2. **Build Command:**
    - `npm run build`
