@@ -1,6 +1,7 @@
 # RAG WITH ATLAS VECTOR SEARCH/backend/config.py
 import os
 from dotenv import load_dotenv
+import urllib.parse
 
 # Load environment variables from .env file
 load_dotenv()
@@ -10,8 +11,6 @@ load_dotenv()
 
 # --- MongoDB Configuration ---
 # MongoDB connection string is now loaded from .env for security
-import urllib.parse
-
 raw_mongo_uri = os.getenv("MONGO_URI")  # Set this in your .env file
 print(f"[DEBUG] Raw MongoDB URI: {raw_mongo_uri[:20]}..." if raw_mongo_uri else "[DEBUG] No MongoDB URI found")
 if raw_mongo_uri:
@@ -24,9 +23,9 @@ if raw_mongo_uri:
                 auth_part, host_part = rest.split('@', 1)
                 if ':' in auth_part:
                     username, password = auth_part.split(':', 1)
-                    # URL encode username and password
-                    encoded_username = urllib.parse.quote_plus(username)
-                    encoded_password = urllib.parse.quote_plus(password)
+                    # URL encode username and password with aggressive encoding
+                    encoded_username = urllib.parse.quote_plus(username, safe='')
+                    encoded_password = urllib.parse.quote_plus(password, safe='')
                     # Reconstruct the URI
                     MONGO_URI = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
                 else:
