@@ -61,6 +61,23 @@ async def health_check():
             "mongodb": "connected",
             "timestamp": str(datetime.datetime.now())
         }
+    except ValueError as e:
+        if "Port contains non-digit characters" in str(e):
+            # This is the specific error we're dealing with
+            logger.error(f"MongoDB URI encoding error: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "issue": "MongoDB URI encoding problem - special characters in username/password need URL encoding",
+                "timestamp": str(datetime.datetime.now())
+            }
+        else:
+            logger.error(f"ValueError in health check: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": str(datetime.datetime.now())
+            }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return {
