@@ -1,7 +1,5 @@
-fastapi==0.115.6
-uvicorn[standard]==0.32.1
-pydantic==2.10.4
-pymongo==4.8.0
-pypdf==4.2.0
-python-multipart==0.0.20
-python-dotenv==1.0.1
+fastapi
+uvicorn[standard]
+pymongo
+python-multipart
+python-dotenv
