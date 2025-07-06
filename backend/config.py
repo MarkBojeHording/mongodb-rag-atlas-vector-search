@@ -10,7 +10,28 @@ load_dotenv()
 
 # --- MongoDB Configuration ---
 # MongoDB connection string is now loaded from .env for security
-MONGO_URI = os.getenv("MONGO_URI")  # Set this in your .env file
+import urllib.parse
+
+raw_mongo_uri = os.getenv("MONGO_URI")  # Set this in your .env file
+if raw_mongo_uri:
+    # Parse and re-encode the URI to handle special characters
+    parsed = urllib.parse.urlparse(raw_mongo_uri)
+    # Re-encode username and password if they contain special characters
+    if '@' in parsed.netloc:
+        auth, host = parsed.netloc.split('@', 1)
+        if ':' in auth:
+            username, password = auth.split(':', 1)
+            # URL encode username and password
+            encoded_username = urllib.parse.quote_plus(username)
+            encoded_password = urllib.parse.quote_plus(password)
+            # Reconstruct the URI
+            MONGO_URI = f"{parsed.scheme}://{encoded_username}:{encoded_password}@{host}"
+        else:
+            MONGO_URI = raw_mongo_uri
+    else:
+        MONGO_URI = raw_mongo_uri
+else:
+    MONGO_URI = None
 DB_NAME = "rag_db"
 COLLECTION_NAME = "test"
 VECTOR_SEARCH_INDEX_NAME = "vector_index"
