@@ -4,7 +4,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://mongodb-rag-backend.onrender.com/api/:splat"
+  to = "https://mongodb-rag-atlas-vector-search.onrender.com/api/:splat"
   status = 200
   force = true
 
