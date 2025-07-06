@@ -4,13 +4,47 @@ from pymongo import MongoClient
 from pymongo.operations import SearchIndexModel
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from config import MONGO_URI, DB_NAME, COLLECTION_NAME, VECTOR_SEARCH_INDEX_NAME, INVESTOR_PDF_URL, CHUNK_SIZE, CHUNK_OVERLAP
 from rag_models import get_embedding
 import logging
 import time
+import os
+import urllib.parse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load configuration directly to avoid config.py import issues
+raw_mongo_uri = os.getenv("MONGO_URI")
+if raw_mongo_uri:
+    try:
+        # Encode the URI safely
+        if 'mongodb+srv://' in raw_mongo_uri:
+            scheme, rest = raw_mongo_uri.split('://', 1)
+            if '@' in rest:
+                auth_part, host_part = rest.split('@', 1)
+                if ':' in auth_part:
+                    username, password = auth_part.split(':', 1)
+                    encoded_username = urllib.parse.quote_plus(username, safe='')
+                    encoded_password = urllib.parse.quote_plus(password, safe='')
+                    MONGO_URI = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+                else:
+                    MONGO_URI = raw_mongo_uri
+            else:
+                MONGO_URI = raw_mongo_uri
+        else:
+            MONGO_URI = raw_mongo_uri
+    except Exception as e:
+        logger.error(f"Error encoding MongoDB URI: {e}")
+        MONGO_URI = raw_mongo_uri
+else:
+    MONGO_URI = None
+
+DB_NAME = "rag_db"
+COLLECTION_NAME = "test"
+VECTOR_SEARCH_INDEX_NAME = "vector_index"
+INVESTOR_PDF_URL = "https://investors.mongodb.com/node/12236/pdf"
+CHUNK_SIZE = 400
+CHUNK_OVERLAP = 20
 
 def get_mongo_collection():
     """Establishes MongoDB connection and returns the collection. MONGO_URI is loaded from environment for security."""
