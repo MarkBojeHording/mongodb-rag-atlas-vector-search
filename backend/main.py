@@ -9,6 +9,8 @@ import sys
 import datetime
 from config import MONGO_URI
 import os
+import urllib.parse
+from pymongo import MongoClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -165,5 +167,55 @@ async def debug_info():
             info["special_chars"].append(char)
 
     return info
+
+@app.get("/test-connection")
+async def test_connection():
+    """Test MongoDB connection directly without config.py"""
+    raw_uri = os.getenv("MONGO_URI")
+    if not raw_uri:
+        return {"error": "MONGO_URI not found"}
+
+    results = {
+        "raw_uri_length": len(raw_uri),
+        "raw_uri_preview": raw_uri[:30] + "..." if len(raw_uri) > 30 else raw_uri,
+        "tests": {}
+    }
+
+    # Test 1: Direct connection
+    try:
+        client = MongoClient(raw_uri, serverSelectionTimeoutMS=5000)
+        client.admin.command('ping')
+        results["tests"]["direct"] = "success"
+        client.close()
+    except Exception as e:
+        results["tests"]["direct"] = f"failed: {str(e)}"
+
+    # Test 2: Manual encoding
+    try:
+        if 'mongodb+srv://' in raw_uri:
+            scheme, rest = raw_uri.split('://', 1)
+            if '@' in rest:
+                auth_part, host_part = rest.split('@', 1)
+                if ':' in auth_part:
+                    username, password = auth_part.split(':', 1)
+                    encoded_username = urllib.parse.quote_plus(username, safe='')
+                    encoded_password = urllib.parse.quote_plus(password, safe='')
+                    encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+
+                    client = MongoClient(encoded_uri, serverSelectionTimeoutMS=5000)
+                    client.admin.command('ping')
+                    results["tests"]["encoded"] = "success"
+                    results["encoded_uri_preview"] = encoded_uri[:30] + "..."
+                    client.close()
+                else:
+                    results["tests"]["encoded"] = "no password found"
+            else:
+                results["tests"]["encoded"] = "no authentication found"
+        else:
+            results["tests"]["encoded"] = "not mongodb+srv URI"
+    except Exception as e:
+        results["tests"]["encoded"] = f"failed: {str(e)}"
+
+    return results
 
 # You can add more endpoints here, e.g., for document upload, system status, etc.
