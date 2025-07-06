@@ -1,4 +1,5 @@
 # RAG WITH ATLAS VECTOR SEARCH/backend/db_utils.py
+# FORCE REDEPLOY - URI encoding fix
 from pymongo import MongoClient
 from pymongo.operations import SearchIndexModel
 from langchain_community.document_loaders import PyPDFLoader
