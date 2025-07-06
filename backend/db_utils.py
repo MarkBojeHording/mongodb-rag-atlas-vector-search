@@ -13,10 +13,41 @@ logger = logging.getLogger(__name__)
 
 def get_mongo_collection():
     """Establishes MongoDB connection and returns the collection. MONGO_URI is loaded from environment for security."""
+    import urllib.parse
+
+    # Ensure the MongoDB URI is properly encoded
+    if MONGO_URI:
+        try:
+            # Parse and re-encode the URI to handle special characters
+            if 'mongodb+srv://' in MONGO_URI:
+                scheme, rest = MONGO_URI.split('://', 1)
+                if '@' in rest:
+                    auth_part, host_part = rest.split('@', 1)
+                    if ':' in auth_part:
+                        username, password = auth_part.split(':', 1)
+                        # URL encode username and password
+                        encoded_username = urllib.parse.quote_plus(username)
+                        encoded_password = urllib.parse.quote_plus(password)
+                        # Reconstruct the URI
+                        encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+                    else:
+                        encoded_uri = MONGO_URI
+                else:
+                    encoded_uri = MONGO_URI
+            else:
+                encoded_uri = MONGO_URI
+        except Exception as e:
+            logger.error(f"Error encoding MongoDB URI: {e}")
+            encoded_uri = MONGO_URI
+    else:
+        raise ValueError("MONGO_URI is not set")
+
+    logger.info(f"Connecting to MongoDB with encoded URI: {encoded_uri[:30]}...")
+
     try:
         # Try with minimal SSL configuration first
         client = MongoClient(
-            MONGO_URI,
+            encoded_uri,
             serverSelectionTimeoutMS=30000,
             connectTimeoutMS=30000,
             socketTimeoutMS=30000,
@@ -33,7 +64,7 @@ def get_mongo_collection():
         try:
             logger.info("Retrying with explicit SSL configuration...")
             client = MongoClient(
-                MONGO_URI,
+                encoded_uri,
                 serverSelectionTimeoutMS=30000,
                 connectTimeoutMS=30000,
                 socketTimeoutMS=30000,
@@ -53,7 +84,7 @@ def get_mongo_collection():
             try:
                 logger.info("Retrying without SSL configuration...")
                 # Remove SSL parameters from URI if present
-                uri_without_ssl = MONGO_URI.replace("?ssl=true", "").replace("&ssl=true", "")
+                uri_without_ssl = encoded_uri.replace("?ssl=true", "").replace("&ssl=true", "")
                 client = MongoClient(
                     uri_without_ssl,
                     serverSelectionTimeoutMS=30000,
