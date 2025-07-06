@@ -1,64 +1,63 @@
 # RAG WITH ATLAS VECTOR SEARCH/backend/db_utils.py
-# FORCE REDEPLOY - URI encoding fix
 from pymongo import MongoClient
 from pymongo.operations import SearchIndexModel
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from config import MONGO_URI, DB_NAME, COLLECTION_NAME, VECTOR_SEARCH_INDEX_NAME, INVESTOR_PDF_URL, CHUNK_SIZE, CHUNK_OVERLAP
 from rag_models import get_embedding
 import logging
 import time
-import os
-import urllib.parse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load configuration directly to avoid config.py import issues
-raw_mongo_uri = os.getenv("MONGO_URI")
-if raw_mongo_uri:
-    try:
-        # Encode the URI safely
-        if 'mongodb+srv://' in raw_mongo_uri:
-            scheme, rest = raw_mongo_uri.split('://', 1)
-            if '@' in rest:
-                auth_part, host_part = rest.split('@', 1)
-                if ':' in auth_part:
-                    username, password = auth_part.split(':', 1)
-                    encoded_username = urllib.parse.quote_plus(username, safe='')
-                    encoded_password = urllib.parse.quote_plus(password, safe='')
-                    MONGO_URI = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
-                else:
-                    MONGO_URI = raw_mongo_uri
-            else:
-                MONGO_URI = raw_mongo_uri
-        else:
-            MONGO_URI = raw_mongo_uri
-    except Exception as e:
-        logger.error(f"Error encoding MongoDB URI: {e}")
-        MONGO_URI = raw_mongo_uri
-else:
-    MONGO_URI = None
-
-DB_NAME = "rag_db"
-COLLECTION_NAME = "test"
-VECTOR_SEARCH_INDEX_NAME = "vector_index"
-INVESTOR_PDF_URL = "https://investors.mongodb.com/node/12236/pdf"
-CHUNK_SIZE = 400
-CHUNK_OVERLAP = 20
-
 def get_mongo_collection():
     """Establishes MongoDB connection and returns the collection. MONGO_URI is loaded from environment for security."""
+    import urllib.parse
 
-    # MONGO_URI is already encoded in config.py, so use it directly
-    if not MONGO_URI:
+    # Ensure the MongoDB URI is properly encoded
+    if MONGO_URI:
+        logger.info(f"Raw MONGO_URI from config: {MONGO_URI[:50]}...")
+        try:
+            # More robust encoding logic
+            if 'mongodb+srv://' in MONGO_URI or 'mongodb://' in MONGO_URI:
+                # Parse the URI more carefully
+                if 'mongodb+srv://' in MONGO_URI:
+                    scheme, rest = MONGO_URI.split('://', 1)
+                else:
+                    scheme, rest = MONGO_URI.split('://', 1)
+
+                if '@' in rest:
+                    auth_part, host_part = rest.split('@', 1)
+                    if ':' in auth_part:
+                        username, password = auth_part.split(':', 1)
+                        # URL encode username and password with more aggressive encoding
+                        encoded_username = urllib.parse.quote_plus(username, safe='')
+                        encoded_password = urllib.parse.quote_plus(password, safe='')
+                        # Reconstruct the URI
+                        encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+                        logger.info(f"Encoded URI: {encoded_uri[:50]}...")
+                    else:
+                        encoded_uri = MONGO_URI
+                        logger.info("No password found in URI")
+                else:
+                    encoded_uri = MONGO_URI
+                    logger.info("No authentication found in URI")
+            else:
+                encoded_uri = MONGO_URI
+                logger.info("Not a MongoDB URI")
+        except Exception as e:
+            logger.error(f"Error encoding MongoDB URI: {e}")
+            encoded_uri = MONGO_URI
+    else:
         raise ValueError("MONGO_URI is not set")
 
-    logger.info(f"Using encoded URI from config: {MONGO_URI[:50]}...")
+    logger.info(f"Final URI for connection: {encoded_uri[:50]}...")
 
     try:
         # Try with minimal SSL configuration first
         client = MongoClient(
-            MONGO_URI,
+            encoded_uri,
             serverSelectionTimeoutMS=30000,
             connectTimeoutMS=30000,
             socketTimeoutMS=30000,
@@ -75,7 +74,7 @@ def get_mongo_collection():
         try:
             logger.info("Retrying with explicit SSL configuration...")
             client = MongoClient(
-                MONGO_URI,
+                encoded_uri,
                 serverSelectionTimeoutMS=30000,
                 connectTimeoutMS=30000,
                 socketTimeoutMS=30000,
@@ -91,26 +90,45 @@ def get_mongo_collection():
             return collection
         except Exception as e2:
             logger.error(f"Error connecting to MongoDB Atlas with relaxed SSL: {e2}")
-            # Try with no SSL configuration as last resort
+            # Try with Render-specific SSL bypass
             try:
-                logger.info("Retrying without SSL configuration...")
-                # Remove SSL parameters from URI if present
-                uri_without_ssl = MONGO_URI.replace("?ssl=true", "").replace("&ssl=true", "")
+                logger.info("Retrying with Render-specific SSL bypass...")
                 client = MongoClient(
-                    uri_without_ssl,
+                    encoded_uri,
                     serverSelectionTimeoutMS=30000,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
+                    tls=True,
+                    tlsInsecure=True,
                     retryWrites=True,
                     w='majority'
                 )
                 client.admin.command('ping')
                 collection = client[DB_NAME][COLLECTION_NAME]
-                logger.info("Successfully connected to MongoDB Atlas without SSL.")
+                logger.info("Successfully connected to MongoDB Atlas with Render SSL bypass.")
                 return collection
             except Exception as e3:
-                logger.error(f"Error connecting to MongoDB Atlas without SSL: {e3}")
-                raise
+                logger.error(f"Error connecting to MongoDB Atlas with Render SSL bypass: {e3}")
+                # Try with no SSL configuration as last resort
+                try:
+                    logger.info("Retrying without SSL configuration...")
+                    # Remove SSL parameters from URI if present
+                    uri_without_ssl = encoded_uri.replace("?ssl=true", "").replace("&ssl=true", "")
+                    client = MongoClient(
+                        uri_without_ssl,
+                        serverSelectionTimeoutMS=30000,
+                        connectTimeoutMS=30000,
+                        socketTimeoutMS=30000,
+                        retryWrites=True,
+                        w='majority'
+                    )
+                    client.admin.command('ping')
+                    collection = client[DB_NAME][COLLECTION_NAME]
+                    logger.info("Successfully connected to MongoDB Atlas without SSL.")
+                    return collection
+                except Exception as e4:
+                    logger.error(f"Error connecting to MongoDB Atlas without SSL: {e4}")
+                    raise
 
 def create_vector_search_index(collection):
     """Creates the vector search index (from notebook)."""
