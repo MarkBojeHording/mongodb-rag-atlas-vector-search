@@ -6,40 +6,72 @@ import urllib.parse
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Hugging Face Configuration ---
-# Load Hugging Face access token from environment variable
+def encode_mongo_uri_safely(raw_uri):
+    """Safely encode MongoDB URI with comprehensive error handling"""
+    if not raw_uri:
+        return None
+
+    try:
+        # Check if it's already a MongoDB URI
+        if not (raw_uri.startswith('mongodb://') or raw_uri.startswith('mongodb+srv://')):
+            print(f"[WARNING] URI doesn't look like MongoDB: {raw_uri[:50]}...")
+            return raw_uri
+
+        # Split the URI into components
+        if '://' not in raw_uri:
+            print(f"[ERROR] Invalid URI format: {raw_uri[:50]}...")
+            return raw_uri
+
+        scheme, rest = raw_uri.split('://', 1)
+
+        # Handle URIs without authentication
+        if '@' not in rest:
+            print("[INFO] No authentication found in URI")
+            return raw_uri
+
+        # Split authentication and host parts
+        auth_part, host_part = rest.split('@', 1)
+
+        # Handle URIs without password
+        if ':' not in auth_part:
+            print("[INFO] No password found in URI")
+            return raw_uri
+
+        # Split username and password
+        username, password = auth_part.split(':', 1)
+
+        # URL encode with aggressive encoding (no safe characters)
+        encoded_username = urllib.parse.quote_plus(username, safe='')
+        encoded_password = urllib.parse.quote_plus(password, safe='')
+
+        # Reconstruct the URI
+        encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+
+        print(f"[SUCCESS] URI encoded successfully")
+        print(f"[DEBUG] Original username: {username}")
+        print(f"[DEBUG] Encoded username: {encoded_username}")
+        print(f"[DEBUG] Original password length: {len(password)}")
+        print(f"[DEBUG] Encoded password length: {len(encoded_password)}")
+        print(f"[DEBUG] Final URI preview: {encoded_uri[:50]}...")
+
+        return encoded_uri
+
+    except Exception as e:
+        print(f"[ERROR] Failed to encode MongoDB URI: {e}")
+        print(f"[ERROR] Raw URI: {raw_uri[:50]}...")
+        return raw_uri
 
 # --- MongoDB Configuration ---
 # MongoDB connection string is now loaded from .env for security
 raw_mongo_uri = os.getenv("MONGO_URI")  # Set this in your .env file
 print(f"[DEBUG] Raw MongoDB URI: {raw_mongo_uri[:20]}..." if raw_mongo_uri else "[DEBUG] No MongoDB URI found")
-if raw_mongo_uri:
-    try:
-        # Handle MongoDB URI with special characters more robustly
-        if 'mongodb+srv://' in raw_mongo_uri:
-            # For MongoDB Atlas SRV connections
-            scheme, rest = raw_mongo_uri.split('://', 1)
-            if '@' in rest:
-                auth_part, host_part = rest.split('@', 1)
-                if ':' in auth_part:
-                    username, password = auth_part.split(':', 1)
-                    # URL encode username and password with aggressive encoding
-                    encoded_username = urllib.parse.quote_plus(username, safe='')
-                    encoded_password = urllib.parse.quote_plus(password, safe='')
-                    # Reconstruct the URI
-                    MONGO_URI = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
-                else:
-                    MONGO_URI = raw_mongo_uri
-            else:
-                MONGO_URI = raw_mongo_uri
-        else:
-            # For regular MongoDB connections
-            MONGO_URI = raw_mongo_uri
-    except Exception as e:
-        print(f"Error processing MongoDB URI: {e}")
-        MONGO_URI = raw_mongo_uri
-else:
-    MONGO_URI = None
+
+# Encode the URI safely
+MONGO_URI = encode_mongo_uri_safely(raw_mongo_uri)
+
+if not MONGO_URI:
+    print("[ERROR] MONGO_URI is not set or could not be processed")
+
 DB_NAME = "rag_db"
 COLLECTION_NAME = "test"
 VECTOR_SEARCH_INDEX_NAME = "vector_index"
