@@ -8,21 +8,13 @@ echo "Starting build process..."
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 
-# Install basic dependencies first
-echo "Installing basic dependencies..."
-pip install -r requirements.txt
-
-# Install PyTorch CPU version
+# Install PyTorch CPU version first
 echo "Installing PyTorch CPU version..."
 pip install torch==2.7.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Install minimal ML packages one by one
-echo "Installing ML packages..."
-pip install --no-deps sentence-transformers
-pip install --no-deps transformers
-pip install --no-deps langchain
-pip install --no-deps langchain-community
-pip install --no-deps huggingface-hub
+# Install all other dependencies
+echo "Installing all dependencies..."
+pip install -r requirements.txt
 
 # Create necessary directories
 echo "Creating necessary directories..."
