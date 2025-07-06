@@ -8,6 +8,7 @@ import logging
 import sys
 import datetime
 from config import MONGO_URI
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -121,5 +122,31 @@ async def ingest_documents_endpoint():
     except Exception as e:
         logger.exception("Error during document ingestion via API.")
         raise HTTPException(status_code=500, detail=f"Document ingestion failed: {e}")
+
+@app.get("/debug")
+async def debug_info():
+    """Debug endpoint to show MongoDB URI information"""
+    raw_uri = os.getenv("MONGO_URI")
+
+    if not raw_uri:
+        return {"error": "MONGO_URI not found in environment"}
+
+    # Show basic info without exposing sensitive data
+    info = {
+        "uri_length": len(raw_uri),
+        "uri_preview": raw_uri[:20] + "..." if len(raw_uri) > 20 else raw_uri,
+        "starts_with_mongodb": raw_uri.startswith('mongodb'),
+        "contains_at": '@' in raw_uri,
+        "contains_colon": ':' in raw_uri,
+        "special_chars": []
+    }
+
+    # Check for problematic characters
+    problematic_chars = ['@', ':', '/', '?', '#', '[', ']', '%', '+', '=', '&']
+    for char in problematic_chars:
+        if char in raw_uri:
+            info["special_chars"].append(char)
+
+    return info
 
 # You can add more endpoints here, e.g., for document upload, system status, etc.
