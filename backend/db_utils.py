@@ -17,32 +17,42 @@ def get_mongo_collection():
 
     # Ensure the MongoDB URI is properly encoded
     if MONGO_URI:
+        logger.info(f"Raw MONGO_URI from config: {MONGO_URI[:50]}...")
         try:
-            # Parse and re-encode the URI to handle special characters
-            if 'mongodb+srv://' in MONGO_URI:
-                scheme, rest = MONGO_URI.split('://', 1)
+            # More robust encoding logic
+            if 'mongodb+srv://' in MONGO_URI or 'mongodb://' in MONGO_URI:
+                # Parse the URI more carefully
+                if 'mongodb+srv://' in MONGO_URI:
+                    scheme, rest = MONGO_URI.split('://', 1)
+                else:
+                    scheme, rest = MONGO_URI.split('://', 1)
+
                 if '@' in rest:
                     auth_part, host_part = rest.split('@', 1)
                     if ':' in auth_part:
                         username, password = auth_part.split(':', 1)
-                        # URL encode username and password
-                        encoded_username = urllib.parse.quote_plus(username)
-                        encoded_password = urllib.parse.quote_plus(password)
+                        # URL encode username and password with more aggressive encoding
+                        encoded_username = urllib.parse.quote_plus(username, safe='')
+                        encoded_password = urllib.parse.quote_plus(password, safe='')
                         # Reconstruct the URI
                         encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
+                        logger.info(f"Encoded URI: {encoded_uri[:50]}...")
                     else:
                         encoded_uri = MONGO_URI
+                        logger.info("No password found in URI")
                 else:
                     encoded_uri = MONGO_URI
+                    logger.info("No authentication found in URI")
             else:
                 encoded_uri = MONGO_URI
+                logger.info("Not a MongoDB URI")
         except Exception as e:
             logger.error(f"Error encoding MongoDB URI: {e}")
             encoded_uri = MONGO_URI
     else:
         raise ValueError("MONGO_URI is not set")
 
-    logger.info(f"Connecting to MongoDB with encoded URI: {encoded_uri[:30]}...")
+    logger.info(f"Final URI for connection: {encoded_uri[:50]}...")
 
     try:
         # Try with minimal SSL configuration first
