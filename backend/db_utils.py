@@ -14,51 +14,17 @@ logger = logging.getLogger(__name__)
 
 def get_mongo_collection():
     """Establishes MongoDB connection and returns the collection. MONGO_URI is loaded from environment for security."""
-    import urllib.parse
 
-    # Ensure the MongoDB URI is properly encoded
-    if MONGO_URI:
-        logger.info(f"Raw MONGO_URI from config: {MONGO_URI[:50]}...")
-        try:
-            # More robust encoding logic
-            if 'mongodb+srv://' in MONGO_URI or 'mongodb://' in MONGO_URI:
-                # Parse the URI more carefully
-                if 'mongodb+srv://' in MONGO_URI:
-                    scheme, rest = MONGO_URI.split('://', 1)
-                else:
-                    scheme, rest = MONGO_URI.split('://', 1)
-
-                if '@' in rest:
-                    auth_part, host_part = rest.split('@', 1)
-                    if ':' in auth_part:
-                        username, password = auth_part.split(':', 1)
-                        # URL encode username and password with more aggressive encoding
-                        encoded_username = urllib.parse.quote_plus(username, safe='')
-                        encoded_password = urllib.parse.quote_plus(password, safe='')
-                        # Reconstruct the URI
-                        encoded_uri = f"{scheme}://{encoded_username}:{encoded_password}@{host_part}"
-                        logger.info(f"Encoded URI: {encoded_uri[:50]}...")
-                    else:
-                        encoded_uri = MONGO_URI
-                        logger.info("No password found in URI")
-                else:
-                    encoded_uri = MONGO_URI
-                    logger.info("No authentication found in URI")
-            else:
-                encoded_uri = MONGO_URI
-                logger.info("Not a MongoDB URI")
-        except Exception as e:
-            logger.error(f"Error encoding MongoDB URI: {e}")
-            encoded_uri = MONGO_URI
-    else:
+    # MONGO_URI is already encoded in config.py, so use it directly
+    if not MONGO_URI:
         raise ValueError("MONGO_URI is not set")
 
-    logger.info(f"Final URI for connection: {encoded_uri[:50]}...")
+    logger.info(f"Using encoded URI from config: {MONGO_URI[:50]}...")
 
     try:
         # Try with minimal SSL configuration first
         client = MongoClient(
-            encoded_uri,
+            MONGO_URI,
             serverSelectionTimeoutMS=30000,
             connectTimeoutMS=30000,
             socketTimeoutMS=30000,
@@ -75,7 +41,7 @@ def get_mongo_collection():
         try:
             logger.info("Retrying with explicit SSL configuration...")
             client = MongoClient(
-                encoded_uri,
+                MONGO_URI,
                 serverSelectionTimeoutMS=30000,
                 connectTimeoutMS=30000,
                 socketTimeoutMS=30000,
@@ -95,7 +61,7 @@ def get_mongo_collection():
             try:
                 logger.info("Retrying without SSL configuration...")
                 # Remove SSL parameters from URI if present
-                uri_without_ssl = encoded_uri.replace("?ssl=true", "").replace("&ssl=true", "")
+                uri_without_ssl = MONGO_URI.replace("?ssl=true", "").replace("&ssl=true", "")
                 client = MongoClient(
                     uri_without_ssl,
                     serverSelectionTimeoutMS=30000,
