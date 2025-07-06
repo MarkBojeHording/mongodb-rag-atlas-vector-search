@@ -6,3 +6,4 @@ python-dotenv
 requests
 pypdf
 langchain_core
+numpy
