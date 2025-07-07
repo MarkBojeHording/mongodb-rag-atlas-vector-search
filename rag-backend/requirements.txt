@@ -1,0 +1,32 @@
+# Core dependencies
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
+requests
+
+# ML and data
+langchain
+sentence-transformers
+scikit-learn
+numpy
+scipy
+pandas
+
+# PDF and parsing
+PyPDF2
+pdfminer.six
+
+# Other utilities
+orjson
+loguru
+httpx
+
+# Optional: If you use these, keep them, otherwise remove
+mpmath
+multidict
+mypy_extensions
+networkx
+
+# Remove strict version pins unless you have a known compatibility reason
+# If you need a specific version for a package, add it back with the correct version
