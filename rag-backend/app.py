@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from rag_chain import answer_question
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -22,9 +28,18 @@ def greet_json():
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    # For now, return a simple response
-    # You can add your RAG logic here later
-    return {
-        "answer": f"Received your question: {request.query}",
-        "sources": []
-    }
+    logger.info(f"Received chat request: {request.query}")
+
+    try:
+        # Use the real RAG functionality
+        result = answer_question(request.query)
+
+        logger.info(f"RAG response generated successfully")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
+        return {
+            "answer": f"Sorry, I encountered an error while processing your question. Please try again.",
+            "sources": []
+        }

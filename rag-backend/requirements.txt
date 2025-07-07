@@ -12,6 +12,7 @@ scikit-learn
 numpy
 scipy
 pandas
+huggingface_hub
 
 # PDF and parsing
 PyPDF2
