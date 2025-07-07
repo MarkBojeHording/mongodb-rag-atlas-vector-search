@@ -5,9 +5,8 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://mongodb-rag-atlas-vector-search.onrender.com/api/:splat"
+  to = "https://markdk-rag-backend.hf.space/:splat"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/*"

@@ -8,3 +8,6 @@
 	url = https://github.com/MarkBojeHording/mongodb-rag-atlas-vector-search.git
 	fetch = +refs/*:refs/*
 	mirror = true
+[remote "hf"]
+	url = https://huggingface.co/spaces/MarkDK/rag-backend
+	fetch = +refs/heads/*:refs/remotes/hf/*
